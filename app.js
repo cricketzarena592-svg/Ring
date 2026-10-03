@@ -434,8 +434,9 @@ async function endRing(eventId) {
 
 $("#create-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
-  const button = event.currentTarget.querySelector("button[type=submit]");
+  const formElement = event.currentTarget;
+  const form = new FormData(formElement);
+  const button = formElement.querySelector("button[type=submit]");
   setBusy(button, true, "Creating…");
   try {
     const { data: ring, error: ringError } = await state.client.from("rings").insert({
@@ -445,7 +446,7 @@ $("#create-form").addEventListener("submit", async (event) => {
     const { error: memberError } = await state.client.from("ring_members").insert({ ring_id: ring.id, user_id: state.user.id });
     if (memberError) throw memberError;
     closeDialog("create-dialog");
-    event.currentTarget.reset();
+    formElement.reset();
     state.selectedRingId = ring.id;
     await loadWorkspace();
     notify("Your Ring is ready.");
@@ -458,17 +459,18 @@ $("#create-form").addEventListener("submit", async (event) => {
 
 $("#invite-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
-  const button = event.currentTarget.querySelector("button[type=submit]");
+  const formElement = event.currentTarget;
+  const form = new FormData(formElement);
+  const button = formElement.querySelector("button[type=submit]");
   setBusy(button, true, "Adding…");
   try {
     const { error } = await state.client.rpc("add_ring_member", {
-      p_ring_id: event.currentTarget.dataset.ringId,
+      p_ring_id: formElement.dataset.ringId,
       p_identifier: String(form.get("identifier")).trim(),
     });
     if (error) throw error;
     closeDialog("invite-dialog");
-    event.currentTarget.reset();
+    formElement.reset();
     await loadWorkspace();
     notify("Member added to your Ring.");
   } catch (error) {
