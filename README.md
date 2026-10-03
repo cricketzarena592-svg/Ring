@@ -21,6 +21,8 @@ Open `http://localhost:8000`. The app connects using the project URL and public 
 
 The schema includes row-level security policies, profile creation on signup, and a secure invite RPC. Realtime is enabled for ring events and responses. The app's live updates require a network connection.
 
+Ring creators can delete their own Rings from the Ring options menu. Deletion is permanent and removes the Ring's members, check-ins, and responses.
+
 ## PWA
 
 Install prompts and service workers require `localhost` or HTTPS. The app shell is cached for offline loading; authentication and live Ring actions require Supabase connectivity.

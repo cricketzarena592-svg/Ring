@@ -87,7 +87,12 @@
           <section class="ring-layout" aria-label="Your Rings">
             <div class="ring-list-column">
               <div class="section-heading"><h2>All Rings</h2><span class="count-pill" id="ring-count">0</span></div>
+              <label class="ring-search" id="ring-search">
+                <span aria-hidden="true">⌕</span>
+                <input id="ring-search-input" type="search" placeholder="Search your Rings" autocomplete="off" aria-label="Search your Rings">
+              </label>
               <div id="ring-list" class="ring-list"></div>
+              <p id="no-ring-results" class="no-ring-results" hidden>No Rings match your search.</p>
               <div id="empty-rings" class="empty-rings" hidden>
                 <span class="empty-mark">＋</span>
                 <h3>Start with your people</h3>
@@ -111,6 +116,19 @@
         <label>Ring name<input name="name" placeholder="Sunday runners" maxlength="50" required></label>
         <label>Default question<input name="topic" placeholder="Are you coming for a run?" maxlength="120" required></label>
         <div class="modal-actions"><button class="quiet-button" type="button" data-close="create-dialog">Cancel</button><button class="primary-button" type="submit">Create Ring <span aria-hidden="true">↗</span></button></div>
+      </form>
+    </dialog>
+
+    <dialog id="delete-dialog" class="modal-dialog">
+      <form id="delete-form" class="modal-card">
+        <button class="modal-close" type="button" data-close="delete-dialog" aria-label="Close">×</button>
+        <span class="eyebrow">RING SETTINGS</span>
+        <h2>Delete this Ring?</h2>
+        <p class="modal-intro">Delete <strong id="delete-ring-name">this Ring</strong>? This permanently removes the Ring, its members, and its check-in history. This can't be undone.</p>
+        <div class="modal-actions">
+          <button class="quiet-button" type="button" data-close="delete-dialog">Keep Ring</button>
+          <button class="primary-button danger-button" type="submit">Delete Ring</button>
+        </div>
       </form>
     </dialog>
 

@@ -12,6 +12,7 @@ const state = {
   incomingResponses: [],
   outgoing: null,
   responses: [],
+  pendingDeleteRingId: null,
   authMode: "signin",
   toastTimer: null,
   installPrompt: null,
@@ -177,8 +178,10 @@ async function loadWorkspace() {
   state.profile = profile;
   state.rings = (memberships || []).map((membership) => membership.rings).filter(Boolean);
   state.rings.sort((first, second) => first.name.localeCompare(second.name));
-  if (!state.rings.some((ring) => ring.id === state.selectedRingId)) {
-    state.selectedRingId = state.rings[0]?.id || null;
+  const query = $("#ring-search-input").value.trim().toLowerCase();
+  const visibleRings = state.rings.filter((ring) => ring.name.toLowerCase().includes(query));
+  if (!visibleRings.some((ring) => ring.id === state.selectedRingId)) {
+    state.selectedRingId = visibleRings[0]?.id || null;
   }
   renderProfile();
   await Promise.all([loadMembers(), findActiveEvents()]);
@@ -346,7 +349,11 @@ function renderIncoming() {
 function renderRings() {
   $("#ring-count").textContent = String(state.rings.length);
   $("#empty-rings").hidden = state.rings.length > 0;
-  $("#ring-list").innerHTML = state.rings.map((ring) => `
+  $("#ring-search").hidden = state.rings.length === 0;
+  const query = $("#ring-search-input").value.trim().toLowerCase();
+  const visibleRings = state.rings.filter((ring) => ring.name.toLowerCase().includes(query));
+  $("#no-ring-results").hidden = visibleRings.length > 0 || state.rings.length === 0;
+  $("#ring-list").innerHTML = visibleRings.map((ring) => `
     <button class="ring-card ${ring.id === state.selectedRingId ? "is-selected" : ""}" type="button" data-select-ring="${escapeHtml(ring.id)}" aria-pressed="${ring.id === state.selectedRingId}">
       <span class="ring-symbol">${escapeHtml(ring.name.charAt(0).toUpperCase())}</span>
       <span class="ring-card-copy"><strong>${escapeHtml(ring.name)}</strong><small>${ring.members?.length || 0} ${(ring.members?.length || 0) === 1 ? "member" : "members"}</small></span>
@@ -354,7 +361,8 @@ function renderRings() {
     </button>`).join("");
   const ring = state.rings.find((item) => item.id === state.selectedRingId);
   if (!ring) {
-    $("#ring-detail").innerHTML = `<div class="detail-empty"><span class="ring-symbol">r</span><h2>${state.rings.length ? "Choose a Ring" : "Your space is ready"}</h2><p>${state.rings.length ? "Select a Ring to see the group and start a check-in." : "Create your first Ring to get your people together."}</p></div>`;
+    const hasQuery = query.length > 0;
+    $("#ring-detail").innerHTML = `<div class="detail-empty"><span class="ring-symbol">r</span><h2>${hasQuery ? "No matching Ring" : state.rings.length ? "Choose a Ring" : "Your space is ready"}</h2><p>${hasQuery ? "Try another search to find a Ring." : state.rings.length ? "Select a Ring to see the group and start a check-in." : "Create your first Ring to get your people together."}</p></div>`;
     return;
   }
   const event = state.outgoing?.ring_id === ring.id ? state.outgoing : null;
@@ -373,12 +381,15 @@ function renderRings() {
     const isYou = member.user_id === state.user.id;
     return `<span class="member-chip"><span class="member-mini">${escapeHtml(ringId.replace(/^@/, "").charAt(0).toUpperCase())}</span>${escapeHtml(ringId)}${isYou ? " <small>you</small>" : ""}</span>`;
   }).join("");
+  const canDelete = ring.created_by === state.user.id;
   $("#ring-detail").innerHTML = `
     <div class="detail-banner">
+      <div class="ring-hero-avatar" aria-hidden="true">${escapeHtml(ring.name.charAt(0).toUpperCase())}</div>
       <span class="eyebrow">YOUR RING</span><h2>${escapeHtml(ring.name)}</h2><p>${escapeHtml(ring.default_topic)}</p>
       <div class="detail-actions">
         <button class="primary-button ring-now-button" type="button" data-ring-now="${escapeHtml(ring.id)}">${event ? "Ring is live" : "◉  Ring now"}</button>
         <button class="quiet-button detail-invite" type="button" data-invite-ring="${escapeHtml(ring.id)}">＋ Invite</button>
+        ${canDelete ? `<details class="ring-options"><summary class="ring-options-button" aria-label="Ring options" title="Ring options">•••</summary><div class="ring-options-menu"><button class="delete-ring-option" type="button" data-delete-ring="${escapeHtml(ring.id)}">Delete Ring</button></div></details>` : ""}
       </div>
     </div>
     <div class="detail-section"><div class="detail-section-head"><h3>Members</h3><span>${ring.members?.length || 0} ${(ring.members?.length || 0) === 1 ? "person" : "people"}</span></div><div class="member-list">${members || "<span class=member-chip>No members yet</span>"}</div></div>
@@ -391,16 +402,80 @@ $("#ring-list").addEventListener("click", (event) => {
   state.selectedRingId = button.dataset.selectRing;
   renderRings();
 });
+$("#ring-search-input").addEventListener("input", (event) => {
+  const query = event.currentTarget.value.trim().toLowerCase();
+  const match = state.rings.find((ring) => ring.name.toLowerCase().includes(query));
+  state.selectedRingId = match?.id || null;
+  renderRings();
+});
 $("#ring-detail").addEventListener("click", async (event) => {
   const ringButton = event.target.closest("[data-ring-now]");
   const inviteButton = event.target.closest("[data-invite-ring]");
   const endButton = event.target.closest("[data-end-event]");
+  const deleteButton = event.target.closest("[data-delete-ring]");
   if (ringButton) await startRing(ringButton.dataset.ringNow);
   if (inviteButton) {
     $("#invite-form").dataset.ringId = inviteButton.dataset.inviteRing;
     openDialog("invite-dialog");
   }
   if (endButton) await endRing(endButton.dataset.endEvent);
+  if (deleteButton) {
+    deleteButton.closest(".ring-options")?.removeAttribute("open");
+    const ring = state.rings.find((item) => item.id === deleteButton.dataset.deleteRing);
+    if (!ring || ring.created_by !== state.user.id) {
+      notify("Only the Ring creator can delete it.");
+      return;
+    }
+    state.pendingDeleteRingId = ring.id;
+    $("#delete-ring-name").textContent = ring.name;
+    openDialog("delete-dialog");
+  }
+});
+
+$("#delete-dialog").addEventListener("close", () => {
+  state.pendingDeleteRingId = null;
+});
+$("#delete-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const ringId = state.pendingDeleteRingId;
+  const ring = state.rings.find((item) => item.id === ringId);
+  if (!ring || ring.created_by !== state.user.id) {
+    notify("Only the Ring creator can delete it.");
+    closeDialog("delete-dialog");
+    return;
+  }
+  const formElement = event.currentTarget;
+  const button = formElement.querySelector("button[type=submit]");
+  setBusy(button, true, "Deleting…");
+  try {
+    const { data: deletedRings, error } = await state.client
+      .from("rings")
+      .delete()
+      .eq("id", ring.id)
+      .eq("created_by", state.user.id)
+      .select("id");
+    if (error) throw error;
+    if (!deletedRings?.length) {
+      throw new Error("This Ring may already be deleted, or you may not have permission to delete it.");
+    }
+    if (state.incoming?.ring_id === ring.id) {
+      state.incoming = null;
+      state.incomingResponses = [];
+      closeDialog("incoming-dialog");
+    }
+    if (state.outgoing?.ring_id === ring.id) {
+      state.outgoing = null;
+      state.responses = [];
+    }
+    state.selectedRingId = null;
+    closeDialog("delete-dialog");
+    await loadWorkspace();
+    notify("Ring deleted.");
+  } catch (error) {
+    notify(error.message || "Unable to delete this Ring.");
+  } finally {
+    setBusy(button, false);
+  }
 });
 
 async function startRing(ringId) {
@@ -447,6 +522,7 @@ $("#create-form").addEventListener("submit", async (event) => {
     if (memberError) throw memberError;
     closeDialog("create-dialog");
     formElement.reset();
+    $("#ring-search-input").value = "";
     state.selectedRingId = ring.id;
     await loadWorkspace();
     notify("Your Ring is ready.");
