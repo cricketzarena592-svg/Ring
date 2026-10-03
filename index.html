@@ -17,7 +17,6 @@
     <div id="auth-view" class="auth-view">
       <header class="auth-topbar">
         <a class="brand" href="#" aria-label="Ring home"><span class="brand-mark">r</span>ring</a>
-        <button class="quiet-button" id="open-connection">Connection settings</button>
       </header>
       <main class="auth-main">
         <div class="auth-copy">
@@ -30,7 +29,6 @@
           <div class="auth-panel-heading">
             <span class="eyebrow">WELCOME TO RING</span>
             <h2 id="auth-heading">Sign in to your account</h2>
-            <p id="connection-message" class="connection-message"></p>
           </div>
           <div class="auth-tabs" role="tablist" aria-label="Account access">
             <button class="auth-tab is-active" type="button" data-auth-mode="signin" role="tab" aria-selected="true">Sign in</button>
@@ -72,7 +70,6 @@
           <div><span class="eyebrow">YOUR COMMUNITY</span><span class="topbar-title">Stay in the loop</span></div>
           <div class="topbar-actions">
             <button class="icon-button install-button" id="install-app" type="button" title="Install Ring" aria-label="Install Ring" hidden>↓</button>
-            <button class="quiet-button connection-button" id="open-connection-app" type="button">Connection</button>
             <button class="avatar avatar-small" id="open-profile-top" type="button" aria-label="Open your profile">R</button>
           </div>
         </header>
@@ -104,19 +101,6 @@
         </div>
       </main>
     </div>
-
-    <dialog id="connection-dialog" class="modal-dialog">
-      <form id="connection-form" class="modal-card">
-        <button class="modal-close" type="button" data-close="connection-dialog" aria-label="Close">×</button>
-        <span class="eyebrow">SUPABASE PROJECT</span>
-        <h2>Connect Ring</h2>
-        <p class="modal-intro">Enter your project URL and public anon key. They stay in this browser.</p>
-        <label>Project URL<input name="url" type="url" placeholder="https://your-project.supabase.co" required></label>
-        <label>Anon / publishable key<input name="key" type="password" autocomplete="off" placeholder="sb_publishable_… or eyJ…" required></label>
-        <p class="form-note">Never enter a service-role key here.</p>
-        <div class="modal-actions"><button class="quiet-button" type="button" data-close="connection-dialog">Cancel</button><button class="primary-button" type="submit">Save connection <span aria-hidden="true">↗</span></button></div>
-      </form>
-    </dialog>
 
     <dialog id="create-dialog" class="modal-dialog">
       <form id="create-form" class="modal-card">

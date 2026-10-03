@@ -10,12 +10,12 @@ Serve this directory from `localhost` or an HTTPS host. For example:
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000`. In the app, open **Connection settings** and enter your Supabase project URL and anon/publishable key. These values are stored in this browser only. Never use a service-role key in the frontend.
+Open `http://localhost:8000`. The app connects using the project URL and public publishable key in [`supabase-config.js`](supabase-config.js). The publishable key is browser-visible by design; never put a service-role or secret key in this file.
 
 ## Supabase setup
 
-1. Create a Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor.
-2. In **Authentication > URL Configuration**, add the app's local and deployed URLs.
+1. Create a Supabase project, update [`supabase-config.js`](supabase-config.js) with its URL and publishable key, and run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor.
+2. In **Authentication > URL Configuration**, set **Site URL** to your deployed Ring URL and add that exact app URL, plus your local development URL, to **Redirect URLs**. Confirmation links return to the URL currently hosting Ring, which must be allowlisted.
 3. Optionally disable email confirmation for a quick local prototype. With confirmation enabled, users must confirm their email before signing in.
 4. Sign up with an email, password, and Ring ID. Ring No is generated automatically as a private, non-phone identifier. Share either ID with people you want to invite.
 

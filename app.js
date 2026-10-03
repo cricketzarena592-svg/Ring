@@ -1,3 +1,5 @@
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabase-config.js";
+
 const $ = (selector) => document.querySelector(selector);
 const state = {
   client: null,
@@ -50,14 +52,6 @@ function closeDialog(id) {
   if (dialog?.open) dialog.close();
 }
 
-function savedConnection() {
-  try {
-    return JSON.parse(localStorage.getItem("ring.supabase") || "null");
-  } catch {
-    return null;
-  }
-}
-
 function isPrivilegedKey(key) {
   if (/service_role|sb_secret_/i.test(key)) return true;
   const encodedPayload = key.split(".")[1];
@@ -71,41 +65,31 @@ function isPrivilegedKey(key) {
   }
 }
 
-async function configureClient(url, key) {
-  const normalizedUrl = url.trim().replace(/\/$/, "");
-  const normalizedKey = key.trim();
+async function configureClient() {
+  const normalizedUrl = SUPABASE_URL.trim().replace(/\/$/, "");
+  const normalizedKey = SUPABASE_PUBLISHABLE_KEY.trim();
   if (!/^https:\/\/[\w.-]+\.supabase\.co$/.test(normalizedUrl)) {
-    throw new Error("Enter a valid Supabase project URL.");
+    throw new Error("The configured Supabase project URL is invalid.");
   }
   if (!normalizedKey || isPrivilegedKey(normalizedKey)) {
-    throw new Error("Enter the public anon or publishable key, not a secret or service-role key.");
+    throw new Error("Configure a public anon or publishable key, not a secret or service-role key.");
   }
   const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-  localStorage.setItem("ring.supabase", JSON.stringify({ url: normalizedUrl, key: normalizedKey }));
   state.client = createClient(normalizedUrl, normalizedKey);
   state.client.auth.onAuthStateChange((_event, session) => {
     handleSession(session).catch((error) => notify(error.message));
   });
-  $("#connection-message").textContent = "Connection saved. Sign in or create your account.";
   return state.client;
 }
 
 async function start() {
-  const config = savedConnection();
-  if (!config?.url || !config?.key) {
-    $("#connection-message").textContent = "Connect a Supabase project to get started.";
-    $("#connection-form [name=url]").value = config?.url || "";
-    openDialog("connection-dialog");
-    return;
-  }
   try {
-    await configureClient(config.url, config.key);
-    $("#connection-message").textContent = "Connection saved. Sign in or create your account.";
+    await configureClient();
     const { data, error } = await state.client.auth.getSession();
     if (error) throw error;
     await handleSession(data.session);
   } catch (error) {
-    $("#connection-message").textContent = error.message;
+    notify(`Unable to connect to Supabase: ${error.message}`);
   }
 }
 
@@ -148,7 +132,7 @@ function cleanRingId(value) {
 $("#auth-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!state.client) {
-    openDialog("connection-dialog");
+    notify("Supabase is not ready yet. Refresh the app and try again.");
     return;
   }
   const form = new FormData(event.currentTarget);
@@ -159,10 +143,11 @@ $("#auth-form").addEventListener("submit", async (event) => {
     if (state.authMode === "signup") {
       const ringId = cleanRingId(form.get("ring_id"));
       if (ringId.length < 3) throw new Error("Add a Ring ID to continue.");
+      const emailRedirectTo = new URL("./", window.location.href).toString();
       result = await state.client.auth.signUp({
         email: String(form.get("email")).trim(),
         password: String(form.get("password")),
-        options: { data: { ring_id: ringId } },
+        options: { data: { ring_id: ringId }, emailRedirectTo },
       });
       if (result.error) throw result.error;
       if (!result.data.session) notify("Account created. Check your email to confirm, then sign in.");
@@ -515,34 +500,7 @@ $("#incoming-dialog").addEventListener("click", (event) => {
 });
 $("#dismiss-incoming").addEventListener("click", () => closeDialog("incoming-dialog"));
 
-$("#connection-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.currentTarget);
-  try {
-    await configureClient(String(form.get("url")), String(form.get("key")));
-    closeDialog("connection-dialog");
-    notify("Supabase connection saved.");
-    const { data, error } = await state.client.auth.getSession();
-    if (error) throw error;
-    await handleSession(data.session);
-  } catch (error) {
-    notify(error.message);
-  }
-});
-
 document.querySelectorAll("[data-auth-mode]").forEach((button) => button.addEventListener("click", () => setAuthMode(button.dataset.authMode)));
-$("#open-connection").addEventListener("click", () => {
-  const config = savedConnection();
-  $("#connection-form [name=url]").value = config?.url || "";
-  $("#connection-form [name=key]").value = "";
-  openDialog("connection-dialog");
-});
-$("#open-connection-app").addEventListener("click", () => {
-  const config = savedConnection();
-  $("#connection-form [name=url]").value = config?.url || "";
-  $("#connection-form [name=key]").value = "";
-  openDialog("connection-dialog");
-});
 $("#open-create-ring").addEventListener("click", () => openDialog("create-dialog"));
 $("#empty-create-ring").addEventListener("click", () => openDialog("create-dialog"));
 $("#open-profile").addEventListener("click", () => openDialog("profile-dialog"));
@@ -570,7 +528,7 @@ window.addEventListener("appinstalled", () => { $("#install-app").hidden = true;
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
 
 start().catch((error) => {
-  $("#connection-message").textContent = error.message;
+  notify(`Unable to connect to Supabase: ${error.message}`);
   $("#auth-view").hidden = false;
   $("#app-view").hidden = true;
 });

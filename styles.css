@@ -53,7 +53,6 @@ button:focus-visible, input:focus-visible { outline: 3px solid #9bb94f; outline-
 .auth-panel { position: relative; z-index: 1; padding: 33px 34px 29px; border: 1px solid #ebeee8; border-radius: 6px; background: #fff; box-shadow: 0 16px 45px rgba(31, 50, 42, .045); }
 .auth-panel-heading h2 { margin: 10px 0 7px; font-family: Manrope, sans-serif; font-size: 23px; }
 .auth-panel-heading > p { min-height: 17px; margin: 0; color: var(--muted); font-size: 12px; }
-.connection-message:not(:empty) { margin-top: 8px; padding: 9px 10px; border-radius: 3px; color: #685b34; background: #f6f1dc; }
 .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; margin: 24px 0 20px; border-bottom: 1px solid var(--line); }
 .auth-tab { padding: 0 4px 12px; border: 0; border-bottom: 2px solid transparent; color: var(--muted); background: transparent; font-size: 12px; font-weight: 600; }
 .auth-tab.is-active { border-bottom-color: var(--forest); color: var(--forest); }
@@ -208,7 +207,6 @@ input::placeholder { color: #a1aaa4; }
   .workspace-topbar .eyebrow { font-size: 8px; }
   .topbar-title { font-size: 12px; }
   .topbar-actions { gap: 7px; }
-  .connection-button { min-height: 34px; padding: 0 8px; font-size: 10px; }
   .avatar-small { width: 32px; }
   .workspace-content { padding: 30px 17px 20px; }
   .page-heading { align-items: center; margin-bottom: 28px; }
