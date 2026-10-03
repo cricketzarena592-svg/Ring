@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#193b32">
+    <meta name="description" content="A simple way to get your people together.">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <title>Ring</title>
+  </head>
+  <body>
+    <div id="auth-view" class="auth-view">
+      <header class="auth-topbar">
+        <a class="brand" href="#" aria-label="Ring home"><span class="brand-mark">r</span>ring</a>
+        <button class="quiet-button" id="open-connection">Connection settings</button>
+      </header>
+      <main class="auth-main">
+        <div class="auth-copy">
+          <span class="eyebrow">MAKE A PLAN, TOGETHER</span>
+          <h1>Your people.<br><span>One ring away.</span></h1>
+          <p>A simple check-in for the groups you show up for.</p>
+          <div class="auth-orbit" aria-hidden="true"><span>R</span><i></i><i></i><i></i></div>
+        </div>
+        <section class="auth-panel" aria-labelledby="auth-heading">
+          <div class="auth-panel-heading">
+            <span class="eyebrow">WELCOME TO RING</span>
+            <h2 id="auth-heading">Sign in to your account</h2>
+            <p id="connection-message" class="connection-message"></p>
+          </div>
+          <div class="auth-tabs" role="tablist" aria-label="Account access">
+            <button class="auth-tab is-active" type="button" data-auth-mode="signin" role="tab" aria-selected="true">Sign in</button>
+            <button class="auth-tab" type="button" data-auth-mode="signup" role="tab" aria-selected="false">Create account</button>
+          </div>
+          <form id="auth-form" class="form-stack">
+            <label>Email address<input name="email" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+            <label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required></label>
+            <div id="signup-fields" class="form-stack" hidden>
+              <label>Ring ID<input name="ring_id" autocomplete="username" placeholder="@your_name" maxlength="30"></label>
+              <p class="form-note">Your Ring No is generated automatically. No phone number needed.</p>
+            </div>
+            <button class="primary-button full-button" id="auth-submit" type="submit">Sign in <span aria-hidden="true">↗</span></button>
+            <p class="form-note">Your Ring ID and Ring No help friends find and invite you.</p>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <div id="app-view" class="app-view" hidden>
+      <aside class="sidebar">
+        <a class="brand brand-light" href="#" aria-label="Ring home"><span class="brand-mark">r</span>ring</a>
+        <div class="sidebar-section">
+          <span class="sidebar-label">YOUR SPACE</span>
+          <button class="sidebar-link is-current" type="button"><span class="sidebar-icon">◉</span> My Rings</button>
+        </div>
+        <div class="sidebar-bottom">
+          <div class="sidebar-note"><span class="status-dot"></span><span>Connected and ready</span></div>
+          <button class="profile-button" id="open-profile" type="button">
+            <span class="avatar" id="avatar-initial">R</span>
+            <span class="profile-button-copy"><strong id="sidebar-ring-id">Your profile</strong><small>View profile</small></span>
+            <span class="profile-chevron">↗</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="workspace-topbar">
+          <div><span class="eyebrow">YOUR COMMUNITY</span><span class="topbar-title">Stay in the loop</span></div>
+          <div class="topbar-actions">
+            <button class="icon-button install-button" id="install-app" type="button" title="Install Ring" aria-label="Install Ring" hidden>↓</button>
+            <button class="quiet-button connection-button" id="open-connection-app" type="button">Connection</button>
+            <button class="avatar avatar-small" id="open-profile-top" type="button" aria-label="Open your profile">R</button>
+          </div>
+        </header>
+
+        <div class="workspace-content">
+          <section class="page-heading">
+            <div>
+              <span class="eyebrow">THE PEOPLE YOU SHOW UP FOR</span>
+              <h1>Your Rings</h1>
+              <p>Bring everyone together with one quick check-in.</p>
+            </div>
+            <button class="primary-button" id="open-create-ring" type="button"><span aria-hidden="true">＋</span> New Ring</button>
+          </section>
+
+          <section class="ring-layout" aria-label="Your Rings">
+            <div class="ring-list-column">
+              <div class="section-heading"><h2>All Rings</h2><span class="count-pill" id="ring-count">0</span></div>
+              <div id="ring-list" class="ring-list"></div>
+              <div id="empty-rings" class="empty-rings" hidden>
+                <span class="empty-mark">＋</span>
+                <h3>Start with your people</h3>
+                <p>Create a Ring for a group you want to get together.</p>
+                <button class="text-button" id="empty-create-ring" type="button">Create your first Ring <span aria-hidden="true">↗</span></button>
+              </div>
+            </div>
+            <div id="ring-detail" class="ring-detail"></div>
+          </section>
+          <footer class="workspace-footer"><span>RING / A LITTLE CLOSER</span><span id="live-status"><i class="status-dot"></i> Live updates on</span></footer>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="connection-dialog" class="modal-dialog">
+      <form id="connection-form" class="modal-card">
+        <button class="modal-close" type="button" data-close="connection-dialog" aria-label="Close">×</button>
+        <span class="eyebrow">SUPABASE PROJECT</span>
+        <h2>Connect Ring</h2>
+        <p class="modal-intro">Enter your project URL and public anon key. They stay in this browser.</p>
+        <label>Project URL<input name="url" type="url" placeholder="https://your-project.supabase.co" required></label>
+        <label>Anon / publishable key<input name="key" type="password" autocomplete="off" placeholder="sb_publishable_… or eyJ…" required></label>
+        <p class="form-note">Never enter a service-role key here.</p>
+        <div class="modal-actions"><button class="quiet-button" type="button" data-close="connection-dialog">Cancel</button><button class="primary-button" type="submit">Save connection <span aria-hidden="true">↗</span></button></div>
+      </form>
+    </dialog>
+
+    <dialog id="create-dialog" class="modal-dialog">
+      <form id="create-form" class="modal-card">
+        <button class="modal-close" type="button" data-close="create-dialog" aria-label="Close">×</button>
+        <span class="eyebrow">A PLACE FOR YOUR PEOPLE</span>
+        <h2>Create a Ring</h2>
+        <p class="modal-intro">Give the group a name and a question to check in with.</p>
+        <label>Ring name<input name="name" placeholder="Sunday runners" maxlength="50" required></label>
+        <label>Default question<input name="topic" placeholder="Are you coming for a run?" maxlength="120" required></label>
+        <div class="modal-actions"><button class="quiet-button" type="button" data-close="create-dialog">Cancel</button><button class="primary-button" type="submit">Create Ring <span aria-hidden="true">↗</span></button></div>
+      </form>
+    </dialog>
+
+    <dialog id="invite-dialog" class="modal-dialog">
+      <form id="invite-form" class="modal-card">
+        <button class="modal-close" type="button" data-close="invite-dialog" aria-label="Close">×</button>
+        <span class="eyebrow">GROW YOUR CIRCLE</span>
+        <h2>Invite someone</h2>
+        <p class="modal-intro">Add a person by their Ring ID or Ring No.</p>
+        <label>Ring ID or Ring No<input name="identifier" placeholder="@friend or +1 555 010 1234" required></label>
+        <div class="modal-actions"><button class="quiet-button" type="button" data-close="invite-dialog">Cancel</button><button class="primary-button" type="submit">Send invite <span aria-hidden="true">↗</span></button></div>
+      </form>
+    </dialog>
+
+    <dialog id="profile-dialog" class="modal-dialog">
+      <section class="modal-card profile-modal">
+        <button class="modal-close" type="button" data-close="profile-dialog" aria-label="Close">×</button>
+        <span class="eyebrow">YOUR RING IDENTITY</span>
+        <h2>Your profile</h2>
+        <div class="profile-field"><span>RING ID</span><strong id="profile-ring-id">—</strong></div>
+        <div class="profile-field"><span>RING NO</span><strong id="profile-ring-no">—</strong></div>
+        <div class="modal-actions"><button class="quiet-button" id="sign-out" type="button">Sign out</button><button class="primary-button" type="button" data-close="profile-dialog">Done</button></div>
+      </section>
+    </dialog>
+
+    <dialog id="incoming-dialog" class="incoming-dialog">
+      <section class="incoming-screen">
+        <button class="incoming-dismiss" id="dismiss-incoming" type="button" aria-label="Dismiss incoming Ring">×</button>
+        <span class="incoming-pulse" aria-hidden="true"><span>r</span></span>
+        <span class="eyebrow">INCOMING RING</span>
+        <p id="incoming-group" class="incoming-group">Your Ring</p>
+        <h2 id="incoming-topic">Are you in?</h2>
+        <p id="incoming-sender" class="incoming-sender">Someone is checking in</p>
+        <div class="response-actions">
+          <button class="response-button response-yes" type="button" data-response="yes"><span>✓</span> Yes</button>
+          <button class="response-button response-no" type="button" data-response="no"><span>×</span> No</button>
+        </div>
+        <p class="incoming-footnote">Your answer is shared with the Ring.</p>
+      </section>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
