@@ -16,6 +16,8 @@ const state = {
   pendingRingEventId: new URLSearchParams(window.location.search).get("ringEvent"),
   serviceWorkerRegistration: null,
   notificationsEnabled: false,
+  ringtoneTimer: null,
+  ringtoneAudio: null,
   authMode: "signin",
   toastTimer: null,
   installPrompt: null,
@@ -103,6 +105,7 @@ async function handleSession(session) {
     state.profile = null;
     state.rings = [];
     state.notificationsEnabled = false;
+    stopRingtone();
     stopRealtime();
     $("#auth-view").hidden = false;
     $("#app-view").hidden = true;
@@ -253,6 +256,10 @@ async function findActiveEvents() {
     await refreshResponses(incoming.id, "incoming");
     renderIncoming();
     openIncoming();
+    playRingtone();
+  } else {
+    stopRingtone();
+    closeDialog("incoming-dialog");
   }
 }
 
@@ -313,13 +320,14 @@ function receiveRing(event) {
   renderRings();
   renderIncoming();
   openIncoming();
-  playAlert();
+  playRingtone();
 }
 
 function eventEnded(event) {
   if (state.incoming?.id === event.id) {
     state.incoming = null;
     state.incomingResponses = [];
+    stopRingtone();
     closeDialog("incoming-dialog");
   }
   if (state.outgoing?.id === event.id) {
@@ -329,23 +337,55 @@ function eventEnded(event) {
   renderRings();
 }
 
-function playAlert() {
+function primeRingtoneAudio() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) return;
   try {
-    const audio = new AudioContext();
-    const oscillator = audio.createOscillator();
-    const gain = audio.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(740, audio.currentTime);
-    oscillator.frequency.setValueAtTime(880, audio.currentTime + .14);
-    gain.gain.setValueAtTime(.001, audio.currentTime);
-    gain.gain.exponentialRampToValueAtTime(.12, audio.currentTime + .025);
-    gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .45);
-    oscillator.connect(gain).connect(audio.destination);
-    oscillator.start();
-    oscillator.stop(audio.currentTime + .46);
-    oscillator.onended = () => audio.close();
-  } catch { /* Audio may be unavailable until the user interacts. */ }
+    state.ringtoneAudio ||= new AudioContextConstructor();
+    state.ringtoneAudio.resume().catch((error) => {
+      console.warn("Ring tone audio could not start.", error);
+    });
+  } catch (error) {
+    console.warn("Ring tone audio is unavailable on this device.", error);
+  }
+}
+
+function playRingtone() {
+  if (state.ringtoneTimer) return;
+  primeRingtoneAudio();
+  const playPhrase = () => {
+    if (!state.ringtoneAudio || state.ringtoneAudio.state !== "running") return;
+    const notes = [659.25, 783.99, 987.77, 783.99];
+    const startAt = state.ringtoneAudio.currentTime + .03;
+    notes.forEach((frequency, index) => {
+      const start = startAt + index * .19;
+      const oscillator = state.ringtoneAudio.createOscillator();
+      const gain = state.ringtoneAudio.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(.001, start);
+      gain.gain.linearRampToValueAtTime(.11, start + .025);
+      gain.gain.setValueAtTime(.11, start + .11);
+      gain.gain.exponentialRampToValueAtTime(.001, start + .16);
+      oscillator.connect(gain).connect(state.ringtoneAudio.destination);
+      oscillator.start(start);
+      oscillator.stop(start + .17);
+    });
+  };
+  state.ringtoneAudio?.resume().then(playPhrase).catch((error) => {
+    console.warn("Ring tone audio could not start; device vibration remains available.", error);
+  });
   navigator.vibrate?.([180, 80, 180]);
+  state.ringtoneTimer = window.setInterval(() => {
+    playPhrase();
+    navigator.vibrate?.([180, 80, 180]);
+  }, 1900);
+}
+
+function stopRingtone() {
+  if (state.ringtoneTimer) window.clearInterval(state.ringtoneTimer);
+  state.ringtoneTimer = null;
+  navigator.vibrate?.(0);
 }
 
 function openIncoming() {
@@ -512,12 +552,30 @@ async function startRing(ringId) {
   state.outgoing = data;
   state.responses = [];
   renderRings();
-  const { error: notificationError } = await state.client.functions.invoke("send-ring-notification", {
+  const { data: notificationResult, error: notificationError } = await state.client.functions.invoke("send-ring-notification", {
     body: { eventId: data.id },
   });
   if (notificationError) {
-    notify(`Ring started, but background notifications couldn't be sent: ${notificationError.message}`);
+    notify(`Ring started, but notifications failed: ${await getPushErrorMessage(notificationError)}`);
+  } else if (notificationResult?.sent > 0) {
+    notify(`Ring started. Notification sent to ${notificationResult.sent} device${notificationResult.sent === 1 ? "" : "s"}.`);
+  } else if (notificationResult?.members === 0) {
+    notify("Ring started, but no one else is in this Ring yet.");
+  } else {
+    notify("Ring started, but no members have enabled notifications on their devices yet.");
   }
+}
+
+async function getPushErrorMessage(error) {
+  if (error.context instanceof Response) {
+    try {
+      const result = await error.context.clone().json();
+      if (typeof result.error === "string") return result.error;
+    } catch {
+      return `${error.message} (HTTP ${error.context.status})`;
+    }
+  }
+  return error.message || "Check the deployed Supabase notification function and VAPID secrets.";
 }
 
 async function endRing(eventId) {
@@ -597,6 +655,7 @@ async function respondToIncoming(response) {
   closeDialog("incoming-dialog");
   state.incoming = null;
   state.incomingResponses = [];
+  stopRingtone();
   notify(`You answered ${response === "yes" ? "Yes" : "No"}.`);
 }
 
@@ -611,6 +670,13 @@ async function refreshNotificationSettings() {
   if (!("Notification" in window) || !("PushManager" in window) || !state.serviceWorkerRegistration) {
     status.textContent = "This browser doesn't support Ring notifications. Install Ring and try a supported browser.";
     button.disabled = true;
+    return;
+  }
+  if (!VAPID_PUBLIC_KEY) {
+    state.notificationsEnabled = false;
+    status.textContent = "Push notifications aren't configured for this app yet. The app owner must add the VAPID public key and deploy the Supabase sender.";
+    button.disabled = true;
+    button.textContent = "Not set up";
     return;
   }
   const subscription = await state.serviceWorkerRegistration.pushManager.getSubscription();
@@ -685,6 +751,7 @@ $("#incoming-dialog").addEventListener("click", (event) => {
   if (response) respondToIncoming(response);
 });
 $("#dismiss-incoming").addEventListener("click", () => closeDialog("incoming-dialog"));
+$("#incoming-dialog").addEventListener("close", stopRingtone);
 
 document.querySelectorAll("[data-auth-mode]").forEach((button) => button.addEventListener("click", () => setAuthMode(button.dataset.authMode)));
 $("#open-create-ring").addEventListener("click", () => openDialog("create-dialog"));
@@ -698,6 +765,23 @@ $("#open-profile").addEventListener("click", () => {
   refreshNotificationSettings().catch((error) => notify(error.message));
 });
 $("#toggle-notifications").addEventListener("click", toggleNotifications);
+document.querySelectorAll("[data-mobile-nav]").forEach((button) => button.addEventListener("click", () => {
+  document.querySelectorAll("[data-mobile-nav]").forEach((item) => {
+    const active = item === button && button.dataset.mobileNav === "rings";
+    item.classList.toggle("is-current", active);
+    if (active) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  });
+  if (button.dataset.mobileNav === "create") {
+    openDialog("create-dialog");
+  } else if (button.dataset.mobileNav === "profile") {
+    openDialog("profile-dialog");
+    refreshNotificationSettings().catch((error) => notify(error.message));
+  } else {
+    $(".workspace-content").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("#ring-search-input").focus({ preventScroll: true });
+  }
+}));
 $("#sign-out").addEventListener("click", async () => {
   try {
     const subscription = await state.serviceWorkerRegistration?.pushManager.getSubscription();
@@ -777,6 +861,9 @@ function registerServiceWorker() {
 }
 if (document.readyState === "complete") registerServiceWorker();
 else window.addEventListener("load", registerServiceWorker, { once: true });
+
+document.addEventListener("pointerdown", primeRingtoneAudio, { once: true });
+document.addEventListener("keydown", primeRingtoneAudio, { once: true });
 
 start().catch((error) => {
   notify(`Unable to connect to Supabase: ${error.message}`);

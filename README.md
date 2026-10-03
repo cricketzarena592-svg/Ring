@@ -47,3 +47,7 @@ Incoming Rings can notify members when Ring is closed. To configure Web Push:
 5. In Ring, open your profile and enable **Ring notifications** on each device. The browser will ask permission. Tapping a notification opens the active incoming Ring screen; mobile browsers do not allow a website to force that screen over other apps or onto the lock screen.
 
 The push sender authenticates the member who started the Ring and only notifies other members of that active Ring. Expired device subscriptions are removed automatically. The app shell is cached for offline loading; authentication, live Ring actions, and sending push notifications require a network connection.
+
+Push setup is incomplete until `VAPID_PUBLIC_KEY` is set in the app, the schema is applied, the VAPID secrets are set in Supabase, and the Edge Function is deployed. Until then, the profile shows that push is not configured, and starting a Ring reports whether there are no members or no subscribed devices. Keep the VAPID public key paired with the private key stored in Supabase.
+
+On mobile, the bottom navigation provides quick access to Rings, creating a Ring, and your profile. When an incoming Ring is open in the app, Ring plays a repeating tone and vibrates where supported; dismissing, answering, or ending the Ring stops it. When the app is closed, the operating system controls the push-notification sound.

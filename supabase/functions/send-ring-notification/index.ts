@@ -66,7 +66,7 @@ Deno.serve(async (request) => {
     .neq("user_id", user.id);
   if (membersError) return jsonResponse({ error: "Unable to find Ring members." }, 500);
   const memberIds = (members || []).map((member) => member.user_id);
-  if (!memberIds.length) return jsonResponse({ sent: 0 });
+  if (!memberIds.length) return jsonResponse({ sent: 0, members: 0, devices: 0 });
 
   const { data: ring, error: ringError } = await adminClient
     .from("rings")
@@ -80,7 +80,7 @@ Deno.serve(async (request) => {
     .select("endpoint, subscription")
     .in("user_id", memberIds);
   if (subscriptionsError) return jsonResponse({ error: "Unable to load Ring notification subscriptions." }, 500);
-  if (!subscriptions?.length) return jsonResponse({ sent: 0 });
+  if (!subscriptions?.length) return jsonResponse({ sent: 0, members: memberIds.length, devices: 0 });
 
   const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
   const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -127,7 +127,16 @@ Deno.serve(async (request) => {
   }
 
   const sent = results.filter((result) => result.status === "fulfilled" && !result.value).length;
-  const failed = results.length - sent - staleEndpoints.length;
-  if (failed) return jsonResponse({ error: `Unable to deliver ${failed} Ring notification${failed === 1 ? "" : "s"}.`, sent }, 502);
-  return jsonResponse({ sent });
+  const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+  if (failures.length) {
+    const statuses = failures.map(({ reason }) => Number.isInteger(reason?.statusCode) ? reason.statusCode : "unknown");
+    console.error("Ring push delivery failures", { statuses, sent });
+    return jsonResponse({
+      error: `Push delivery failed for ${failures.length} device${failures.length === 1 ? "" : "s"} (provider status: ${statuses.join(", ")}).`,
+      sent,
+      members: memberIds.length,
+      devices: subscriptions.length,
+    }, 502);
+  }
+  return jsonResponse({ sent, members: memberIds.length, devices: subscriptions.length });
 });
