@@ -1,5 +1,5 @@
-const CACHE_NAME = "ring-shell-v6";
-const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./supabase-config.js", "./manifest.webmanifest", "./icon.svg"];
+const CACHE_NAME = "ring-shell-v7";
+const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./supabase-config.js", "./manifest.webmanifest", "./icon.svg", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -9,6 +9,51 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
   self.clients.claim();
+});
+
+self.addEventListener("push", (event) => {
+  if (!event.data) {
+    console.error("Received a Ring push notification without a payload.");
+    return;
+  }
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch (error) {
+    console.error("Unable to read Ring push notification.", error);
+    return;
+  }
+  if (typeof payload.eventId !== "string" || !payload.eventId) {
+    console.error("Received a Ring push notification without an event ID.");
+    return;
+  }
+  const title = payload.ringName ? `Ring · ${payload.ringName}` : "Incoming Ring";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: payload.topic || "Someone is checking in with your Ring.",
+    icon: "./icon-192.png",
+    badge: "./icon-192.png",
+    tag: payload.eventId || "incoming-ring",
+    renotify: true,
+    data: {
+      eventId: payload.eventId,
+      url: `./?ringEvent=${encodeURIComponent(payload.eventId || "")}`,
+    },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "./", self.registration.scope).href;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const appWindow = windows.find((client) => new URL(client.url).origin === self.location.origin);
+    if (appWindow) {
+      await appWindow.navigate(targetUrl);
+      await appWindow.focus();
+      return;
+    }
+    await self.clients.openWindow(targetUrl);
+  })());
 });
 
 self.addEventListener("fetch", (event) => {

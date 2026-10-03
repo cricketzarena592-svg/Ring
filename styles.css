@@ -143,7 +143,6 @@ input::placeholder { color: #a1aaa4; }
 .response-tag.yes { color: #367c56; }
 .response-tag.no { color: #cf5e52; }
 .response-tag.waiting { color: #8d9890; }
-.end-event { padding: 0; border: 0; color: #9c5248; background: transparent; font-size: 10px; font-weight: 700; }
 .workspace-footer { display: flex; justify-content: space-between; margin-top: 55px; padding-top: 14px; border-top: 1px solid #e1e6df; color: #98a29b; font-size: 9px; font-weight: 700; }
 .workspace-footer span:last-child { display: flex; align-items: center; gap: 6px; color: #758279; font-weight: 500; letter-spacing: 0; }
 
@@ -232,6 +231,8 @@ input::placeholder { color: #a1aaa4; }
 body { background: var(--canvas); }
 .brand, .brand-light { color: #f4f3f5; }
 .brand-mark { color: #fff; background: linear-gradient(145deg, #9361f7, #5599ff); }
+.ring-logo-glyph { position: relative; display: block; width: 17px; aspect-ratio: 1; border: 2px solid currentColor; border-radius: 50%; }
+.ring-logo-glyph::after { position: absolute; top: -4px; right: -4px; width: 7px; aspect-ratio: 1; border: 2px solid #29292b; border-radius: 50%; background: #fff; content: ""; }
 .eyebrow { color: #99989e; letter-spacing: .12em; }
 .quiet-button { border-color: #4c4c50; border-radius: 9px; color: #e5e4e8; background: #38383a; }
 .quiet-button:hover { background: #454548; }
@@ -292,6 +293,8 @@ input::placeholder { color: #85848a; }
 .ring-now-button:hover { color: white; background: #80a5fa; }
 .detail-invite { border-color: #545459; color: #e7e6eb; background: #414145; }
 .detail-invite:hover { background: #4c4c51; }
+.stop-ring-button { min-height: 39px; border-color: rgba(255,133,139,.42); color: #ff969b; background: rgba(201,80,90,.14); }
+.stop-ring-button:hover { color: #ffb1b5; background: rgba(201,80,90,.25); }
 .ring-options { position: relative; z-index: 3; }
 .ring-options-button { display: grid; width: 39px; height: 39px; place-items: center; border: 1px solid #545459; border-radius: 50%; color: #e5e4e9; background: #414145; cursor: pointer; font-size: 13px; font-weight: 700; list-style: none; }
 .ring-options-button::-webkit-details-marker { display: none; }
@@ -314,7 +317,6 @@ input::placeholder { color: #85848a; }
 .response-tag.yes { color: #8db2ff; }
 .response-tag.no { color: #ff858b; }
 .response-tag.waiting { color: #aaa9af; }
-.end-event { color: #ff858b; }
 .workspace-footer { border-color: #414145; color: #85848a; }
 .workspace-footer span:last-child { color: #b3b2b8; }
 
@@ -329,6 +331,14 @@ input::placeholder { color: #85848a; }
 .profile-field { border-color: #4a4a4e; border-radius: 10px; background: #2d2d30; }
 .profile-field span { color: #aaa9af; }
 .profile-field strong { color: #f0eff2; }
+.notification-setting { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 12px; border: 1px solid #4a4a4e; border-radius: 10px; background: #2d2d30; }
+.notification-setting > div { display: grid; gap: 5px; }
+.notification-setting strong { color: #f0eff2; font-size: 12px; }
+.notification-setting p { margin: 0; color: #aaa9af; font-size: 10px; line-height: 1.5; }
+.notification-setting button { flex: 0 0 auto; }
+.notification-setting button:disabled { color: #aaa9af; }
+.install-modal { gap: 18px; }
+.install-button { color: #f0eff2; }
 .danger-button { color: #fff; background: #c9505a; box-shadow: none; }
 .danger-button:hover { background: #e05e68; }
 .incoming-dialog { background: #343436; }

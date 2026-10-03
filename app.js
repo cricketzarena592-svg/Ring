@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./supabase-config.js";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, VAPID_PUBLIC_KEY } from "./supabase-config.js";
 
 const $ = (selector) => document.querySelector(selector);
 const state = {
@@ -13,6 +13,9 @@ const state = {
   outgoing: null,
   responses: [],
   pendingDeleteRingId: null,
+  pendingRingEventId: new URLSearchParams(window.location.search).get("ringEvent"),
+  serviceWorkerRegistration: null,
+  notificationsEnabled: false,
   authMode: "signin",
   toastTimer: null,
   installPrompt: null,
@@ -99,6 +102,7 @@ async function handleSession(session) {
     state.user = null;
     state.profile = null;
     state.rings = [];
+    state.notificationsEnabled = false;
     stopRealtime();
     $("#auth-view").hidden = false;
     $("#app-view").hidden = true;
@@ -218,6 +222,11 @@ async function findActiveEvents() {
   if (!state.rings.length) {
     state.incoming = null;
     state.outgoing = null;
+    if (state.pendingRingEventId) {
+      notify("That Ring has ended or is no longer available.");
+      state.pendingRingEventId = null;
+      history.replaceState({}, "", new URL("./", window.location.href));
+    }
     return;
   }
   const { data, error } = await state.client
@@ -228,7 +237,15 @@ async function findActiveEvents() {
     .order("created_at", { ascending: false });
   if (error) throw error;
   const own = data?.find((item) => item.sender_id === state.user.id) || null;
-  const incoming = data?.find((item) => item.sender_id !== state.user.id) || null;
+  const linkedEvent = data?.find((item) => item.id === state.pendingRingEventId) || null;
+  const incoming = linkedEvent?.sender_id !== state.user.id && linkedEvent
+    ? linkedEvent
+    : data?.find((item) => item.sender_id !== state.user.id) || null;
+  if (state.pendingRingEventId && !linkedEvent) notify("That Ring has ended or is no longer available.");
+  if (state.pendingRingEventId) {
+    state.pendingRingEventId = null;
+    history.replaceState({}, "", new URL("./", window.location.href));
+  }
   state.outgoing = own;
   state.incoming = incoming;
   if (own) await refreshResponses(own.id, "outgoing");
@@ -387,13 +404,13 @@ function renderRings() {
       <div class="ring-hero-avatar" aria-hidden="true">${escapeHtml(ring.name.charAt(0).toUpperCase())}</div>
       <span class="eyebrow">YOUR RING</span><h2>${escapeHtml(ring.name)}</h2><p>${escapeHtml(ring.default_topic)}</p>
       <div class="detail-actions">
-        <button class="primary-button ring-now-button" type="button" data-ring-now="${escapeHtml(ring.id)}">${event ? "Ring is live" : "◉  Ring now"}</button>
+        ${event ? `<button class="quiet-button stop-ring-button" type="button" data-end-event="${escapeHtml(event.id)}">■ Stop Ring</button>` : `<button class="primary-button ring-now-button" type="button" data-ring-now="${escapeHtml(ring.id)}">◉ Ring now</button>`}
         <button class="quiet-button detail-invite" type="button" data-invite-ring="${escapeHtml(ring.id)}">＋ Invite</button>
         ${canDelete ? `<details class="ring-options"><summary class="ring-options-button" aria-label="Ring options" title="Ring options">•••</summary><div class="ring-options-menu"><button class="delete-ring-option" type="button" data-delete-ring="${escapeHtml(ring.id)}">Delete Ring</button></div></details>` : ""}
       </div>
     </div>
     <div class="detail-section"><div class="detail-section-head"><h3>Members</h3><span>${ring.members?.length || 0} ${(ring.members?.length || 0) === 1 ? "person" : "people"}</span></div><div class="member-list">${members || "<span class=member-chip>No members yet</span>"}</div></div>
-    ${event ? `<div class="response-summary"><div class="detail-section-head"><h3>Live responses</h3><button class="end-event" type="button" data-end-event="${escapeHtml(event.id)}">End Ring</button></div><div class="response-counts"><span class="response-count yes">${yes} yes</span><span class="response-count no">${no} no</span><span class="response-count waiting">${waiting} waiting</span></div><div class="response-list">${responseRows || '<span class="form-note">No one else in this Ring yet.</span>'}</div></div>` : ""}`;
+    ${event ? `<div class="response-summary"><div class="detail-section-head"><h3>Live responses</h3></div><div class="response-counts"><span class="response-count yes">${yes} yes</span><span class="response-count no">${no} no</span><span class="response-count waiting">${waiting} waiting</span></div><div class="response-list">${responseRows || '<span class="form-note">No one else in this Ring yet.</span>'}</div></div>` : ""}`;
 }
 
 $("#ring-list").addEventListener("click", (event) => {
@@ -495,16 +512,27 @@ async function startRing(ringId) {
   state.outgoing = data;
   state.responses = [];
   renderRings();
+  const { error: notificationError } = await state.client.functions.invoke("send-ring-notification", {
+    body: { eventId: data.id },
+  });
+  if (notificationError) {
+    notify(`Ring started, but background notifications couldn't be sent: ${notificationError.message}`);
+  }
 }
 
 async function endRing(eventId) {
-  const { error } = await state.client.from("ring_events").update({ status: "ended" }).eq("id", eventId);
+  const { data, error } = await state.client.from("ring_events").update({ status: "ended" })
+    .eq("id", eventId).eq("sender_id", state.user.id).select("id");
   if (error) {
     notify(error.message);
     return;
   }
+  if (!data?.length) {
+    notify("Only the person who started this Ring can stop it.");
+    return;
+  }
   eventEnded({ id: eventId });
-  notify("Ring ended.");
+  notify("Ring stopped.");
 }
 
 $("#create-form").addEventListener("submit", async (event) => {
@@ -572,6 +600,86 @@ async function respondToIncoming(response) {
   notify(`You answered ${response === "yes" ? "Yes" : "No"}.`);
 }
 
+function decodeApplicationServerKey(value) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+}
+
+async function refreshNotificationSettings() {
+  const status = $("#notification-status");
+  const button = $("#toggle-notifications");
+  if (!("Notification" in window) || !("PushManager" in window) || !state.serviceWorkerRegistration) {
+    status.textContent = "This browser doesn't support Ring notifications. Install Ring and try a supported browser.";
+    button.disabled = true;
+    return;
+  }
+  const subscription = await state.serviceWorkerRegistration.pushManager.getSubscription();
+  if (subscription && Notification.permission === "granted") {
+    const { data, error } = await state.client.from("ring_push_subscriptions").select("endpoint")
+      .eq("endpoint", subscription.endpoint).maybeSingle();
+    if (error) throw error;
+    state.notificationsEnabled = Boolean(data);
+  } else {
+    state.notificationsEnabled = false;
+  }
+  button.disabled = false;
+  button.textContent = state.notificationsEnabled ? "Turn off" : "Enable";
+  status.textContent = state.notificationsEnabled
+    ? "Notifications are on for incoming Rings on this device."
+    : Notification.permission === "denied"
+      ? "Notifications are blocked. Allow them in your browser or device settings first."
+      : "Get alerted when someone Rings you, even when Ring is closed.";
+}
+
+async function toggleNotifications() {
+  const button = $("#toggle-notifications");
+  button.disabled = true;
+  button.textContent = state.notificationsEnabled ? "Turning off…" : "Enabling…";
+  try {
+    const registration = state.serviceWorkerRegistration;
+    if (!registration) throw new Error("Ring's background service is not ready yet. Refresh and try again.");
+    let subscription = await registration.pushManager.getSubscription();
+    if (state.notificationsEnabled && subscription) {
+      const { error } = await state.client.from("ring_push_subscriptions").delete()
+        .eq("endpoint", subscription.endpoint);
+      if (error) throw error;
+      const unsubscribed = await subscription.unsubscribe();
+      state.notificationsEnabled = false;
+      notify(unsubscribed
+        ? "Ring notifications turned off for this device."
+        : "Ring notifications were removed from your account, but the browser couldn't clear this device's subscription.");
+    } else {
+      if (!VAPID_PUBLIC_KEY) {
+        throw new Error("Background notifications aren't configured yet. Add the VAPID public key to supabase-config.js.");
+      }
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent) && !isAppInstalled()) {
+        throw new Error("On iPhone or iPad, install Ring to your Home Screen before enabling notifications.");
+      }
+      let permission = Notification.permission;
+      if (permission === "default") permission = await Notification.requestPermission();
+      if (permission !== "granted") throw new Error("Allow notifications in your browser settings to receive incoming Rings.");
+      subscription ||= await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: decodeApplicationServerKey(VAPID_PUBLIC_KEY),
+      });
+      const { error } = await state.client.from("ring_push_subscriptions").upsert({
+        user_id: state.user.id,
+        endpoint: subscription.endpoint,
+        subscription: subscription.toJSON(),
+      }, { onConflict: "endpoint" });
+      if (error) throw error;
+      state.notificationsEnabled = true;
+      notify("Ring notifications enabled on this device.");
+    }
+    await refreshNotificationSettings();
+  } catch (error) {
+    notify(error.message || "Unable to update Ring notifications.");
+  } finally {
+    button.disabled = !("Notification" in window) || !("PushManager" in window) || !state.serviceWorkerRegistration;
+    button.textContent = state.notificationsEnabled ? "Turn off" : "Enable";
+  }
+}
+
 $("#incoming-dialog").addEventListener("click", (event) => {
   const response = event.target.closest("[data-response]")?.dataset.response;
   if (response) respondToIncoming(response);
@@ -581,29 +689,94 @@ $("#dismiss-incoming").addEventListener("click", () => closeDialog("incoming-dia
 document.querySelectorAll("[data-auth-mode]").forEach((button) => button.addEventListener("click", () => setAuthMode(button.dataset.authMode)));
 $("#open-create-ring").addEventListener("click", () => openDialog("create-dialog"));
 $("#empty-create-ring").addEventListener("click", () => openDialog("create-dialog"));
-$("#open-profile").addEventListener("click", () => openDialog("profile-dialog"));
-$("#open-profile-top").addEventListener("click", () => openDialog("profile-dialog"));
+$("#open-profile-top").addEventListener("click", () => {
+  openDialog("profile-dialog");
+  refreshNotificationSettings().catch((error) => notify(error.message));
+});
+$("#open-profile").addEventListener("click", () => {
+  openDialog("profile-dialog");
+  refreshNotificationSettings().catch((error) => notify(error.message));
+});
+$("#toggle-notifications").addEventListener("click", toggleNotifications);
 $("#sign-out").addEventListener("click", async () => {
+  try {
+    const subscription = await state.serviceWorkerRegistration?.pushManager.getSubscription();
+    if (subscription) {
+      const { error } = await state.client.from("ring_push_subscriptions").delete()
+        .eq("endpoint", subscription.endpoint);
+      if (error) {
+        notify(`This device may still receive Ring notifications: ${error.message}`);
+      } else if (!(await subscription.unsubscribe())) {
+        notify("Ring notifications were removed from your account, but the browser couldn't clear this device's subscription.");
+      }
+    }
+  } catch (error) {
+    notify(`Unable to remove this device's Ring notifications: ${error.message}`);
+  }
   const { error } = await state.client.auth.signOut();
   if (error) notify(error.message);
   else closeDialog("profile-dialog");
 });
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => closeDialog(button.dataset.close)));
-$("#install-app").addEventListener("click", async () => {
-  if (!state.installPrompt) return;
-  state.installPrompt.prompt();
-  await state.installPrompt.userChoice;
+document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", async () => {
+  if (!state.installPrompt) {
+    showInstallInstructions();
+    return;
+  }
+  const prompt = state.installPrompt;
   state.installPrompt = null;
-  $("#install-app").hidden = true;
-});
+  await prompt.prompt();
+  const { outcome } = await prompt.userChoice;
+  if (outcome === "accepted") setInstallButtonsVisible(false);
+  else showInstallInstructions();
+}));
+
+function setInstallButtonsVisible(visible) {
+  document.querySelectorAll(".install-button").forEach((button) => { button.hidden = !visible; });
+}
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   state.installPrompt = event;
-  $("#install-app").hidden = false;
+  setInstallButtonsVisible(true);
 });
-window.addEventListener("appinstalled", () => { $("#install-app").hidden = true; });
-if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+window.addEventListener("appinstalled", () => setInstallButtonsVisible(false));
+
+function isAppInstalled() {
+  return window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+
+function showInstallInstructions() {
+  const instructions = $("#install-instructions");
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    instructions.textContent = "In Safari, tap the Share button, scroll down, then choose “Add to Home Screen.” Open Ring from your Home Screen to use it like an app.";
+  } else if (/Android/i.test(navigator.userAgent)) {
+    instructions.textContent = "In Chrome, tap the ⋮ menu, then choose “Install app” or “Add to Home screen.” If you don't see it, open this page in Chrome over HTTPS.";
+  } else {
+    instructions.textContent = "Use your browser's install icon in the address bar or open its menu and choose “Install Ring.” Install is available on localhost or a secure HTTPS site.";
+  }
+  openDialog("install-dialog");
+}
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    setInstallButtonsVisible(!isAppInstalled());
+    return;
+  }
+  navigator.serviceWorker.register("./sw.js")
+    .then(async (registration) => {
+      state.serviceWorkerRegistration = await navigator.serviceWorker.ready;
+      setInstallButtonsVisible(!isAppInstalled());
+      if ($("#profile-dialog").open) refreshNotificationSettings().catch((error) => notify(error.message));
+      return registration;
+    })
+    .catch((error) => {
+      notify(`Unable to start Ring's background service: ${error.message}`);
+      setInstallButtonsVisible(!isAppInstalled());
+    });
+}
+if (document.readyState === "complete") registerServiceWorker();
+else window.addEventListener("load", registerServiceWorker, { once: true });
 
 start().catch((error) => {
   notify(`Unable to connect to Supabase: ${error.message}`);

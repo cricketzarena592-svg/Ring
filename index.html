@@ -3,10 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#193b32">
+    <meta name="theme-color" content="#272729">
     <meta name="description" content="A simple way to get your people together.">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Ring">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +19,8 @@
   <body>
     <div id="auth-view" class="auth-view">
       <header class="auth-topbar">
-        <a class="brand" href="#" aria-label="Ring home"><span class="brand-mark">r</span>ring</a>
+        <a class="brand" href="#" aria-label="Ring home"><span class="brand-mark" aria-hidden="true"><span class="ring-logo-glyph"></span></span>ring</a>
+        <button class="icon-button install-button" data-install-app type="button" title="Install Ring" aria-label="Install Ring" hidden>↓</button>
       </header>
       <main class="auth-main">
         <div class="auth-copy">
@@ -50,7 +54,7 @@
 
     <div id="app-view" class="app-view" hidden>
       <aside class="sidebar">
-        <a class="brand brand-light" href="#" aria-label="Ring home"><span class="brand-mark">r</span>ring</a>
+        <a class="brand brand-light" href="#" aria-label="Ring home"><span class="brand-mark" aria-hidden="true"><span class="ring-logo-glyph"></span></span>ring</a>
         <div class="sidebar-section">
           <span class="sidebar-label">YOUR SPACE</span>
           <button class="sidebar-link is-current" type="button"><span class="sidebar-icon">◉</span> My Rings</button>
@@ -69,7 +73,7 @@
         <header class="workspace-topbar">
           <div><span class="eyebrow">YOUR COMMUNITY</span><span class="topbar-title">Stay in the loop</span></div>
           <div class="topbar-actions">
-            <button class="icon-button install-button" id="install-app" type="button" title="Install Ring" aria-label="Install Ring" hidden>↓</button>
+            <button class="icon-button install-button" data-install-app type="button" title="Install Ring" aria-label="Install Ring" hidden>↓</button>
             <button class="avatar avatar-small" id="open-profile-top" type="button" aria-label="Open your profile">R</button>
           </div>
         </header>
@@ -150,7 +154,21 @@
         <h2>Your profile</h2>
         <div class="profile-field"><span>RING ID</span><strong id="profile-ring-id">—</strong></div>
         <div class="profile-field"><span>RING NO</span><strong id="profile-ring-no">—</strong></div>
+        <div class="notification-setting">
+          <div><strong>Ring notifications</strong><p id="notification-status">Get alerted when someone Rings you.</p></div>
+          <button class="quiet-button" id="toggle-notifications" type="button">Enable</button>
+        </div>
         <div class="modal-actions"><button class="quiet-button" id="sign-out" type="button">Sign out</button><button class="primary-button" type="button" data-close="profile-dialog">Done</button></div>
+      </section>
+    </dialog>
+
+    <dialog id="install-dialog" class="modal-dialog">
+      <section class="modal-card install-modal">
+        <button class="modal-close" type="button" data-close="install-dialog" aria-label="Close">×</button>
+        <span class="eyebrow">RING, RIGHT THERE</span>
+        <h2>Install Ring</h2>
+        <p class="modal-intro" id="install-instructions"></p>
+        <div class="modal-actions"><button class="primary-button" type="button" data-close="install-dialog">Got it</button></div>
       </section>
     </dialog>
 

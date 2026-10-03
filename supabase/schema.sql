@@ -39,20 +39,29 @@ create table if not exists public.ring_responses (
   primary key (event_id, user_id)
 );
 
+create table if not exists public.ring_push_subscriptions (
+  endpoint text primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  subscription jsonb not null,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists ring_members_user_id_idx on public.ring_members (user_id);
 create index if not exists ring_events_ring_created_idx on public.ring_events (ring_id, created_at desc);
 create index if not exists ring_responses_user_id_idx on public.ring_responses (user_id);
+create index if not exists ring_push_subscriptions_user_id_idx on public.ring_push_subscriptions (user_id);
 
 update public.profiles
 set ring_no = 'R-' || upper(replace(id::text, '-', ''))
 where ring_no is distinct from ('R-' || upper(replace(id::text, '-', '')));
 
-revoke all on table public.profiles, public.rings, public.ring_members, public.ring_events, public.ring_responses from anon;
+revoke all on table public.profiles, public.rings, public.ring_members, public.ring_events, public.ring_responses, public.ring_push_subscriptions from anon;
 grant select on table public.profiles to authenticated;
 grant select, insert, update, delete on table public.rings to authenticated;
 grant select, insert, update, delete on table public.ring_members to authenticated;
 grant select, insert, update, delete on table public.ring_events to authenticated;
 grant select, insert, update, delete on table public.ring_responses to authenticated;
+grant select, insert, update, delete on table public.ring_push_subscriptions to authenticated;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -162,6 +171,7 @@ alter table public.rings enable row level security;
 alter table public.ring_members enable row level security;
 alter table public.ring_events enable row level security;
 alter table public.ring_responses enable row level security;
+alter table public.ring_push_subscriptions enable row level security;
 
 drop policy if exists "Profiles visible to self and Ring members" on public.profiles;
 create policy "Profiles visible to self and Ring members" on public.profiles
@@ -234,6 +244,10 @@ drop policy if exists "Members update their active response" on public.ring_resp
 create policy "Members update their active response" on public.ring_responses
   for update to authenticated using (user_id = auth.uid() and public.is_active_ring_event(event_id))
   with check (user_id = auth.uid() and public.is_active_ring_event(event_id));
+
+drop policy if exists "Users manage their own push subscriptions" on public.ring_push_subscriptions;
+create policy "Users manage their own push subscriptions" on public.ring_push_subscriptions
+  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 do $$
 begin
