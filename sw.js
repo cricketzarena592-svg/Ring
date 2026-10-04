@@ -1,4 +1,4 @@
-const CACHE_NAME = "ring-shell-v8";
+const CACHE_NAME = "ring-shell-v9";
 const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./supabase-config.js", "./manifest.webmanifest", "./icon.svg", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -23,20 +23,25 @@ self.addEventListener("push", (event) => {
     console.error("Unable to read Ring push notification.", error);
     return;
   }
-  if (typeof payload.eventId !== "string" || !payload.eventId) {
+  if (!payload || typeof payload !== "object") {
+    console.error("Received an invalid Ring push notification.");
+    return;
+  }
+  const isTest = payload.type === "test";
+  if (!isTest && (typeof payload.eventId !== "string" || !payload.eventId)) {
     console.error("Received a Ring push notification without an event ID.");
     return;
   }
-  const title = payload.ringName ? `Ring · ${payload.ringName}` : "Incoming Ring";
+  const title = isTest ? "Ring notification test" : payload.ringName ? `Ring · ${payload.ringName}` : "Incoming Ring";
   event.waitUntil(self.registration.showNotification(title, {
-    body: payload.topic || "Someone is checking in with your Ring.",
+    body: isTest ? "Notifications are working on this device." : payload.topic || "Someone is checking in with your Ring.",
     icon: "./icon-192.png",
     badge: "./icon-192.png",
-    tag: payload.eventId || "incoming-ring",
+    tag: isTest ? "ring-notification-test" : payload.eventId,
     renotify: true,
     data: {
       eventId: payload.eventId,
-      url: `./?ringEvent=${encodeURIComponent(payload.eventId || "")}`,
+      url: isTest ? "./" : `./?ringEvent=${encodeURIComponent(payload.eventId)}`,
     },
   }));
 });

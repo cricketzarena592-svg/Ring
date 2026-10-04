@@ -18,6 +18,7 @@ const state = {
   notificationsEnabled: false,
   ringtoneTimer: null,
   ringtoneAudio: null,
+  ringtoneId: "classic",
   authMode: "signin",
   toastTimer: null,
   installPrompt: null,
@@ -366,33 +367,52 @@ function primeRingtoneAudio() {
 function playRingtone() {
   if (state.ringtoneTimer) return;
   primeRingtoneAudio();
-  const playPhrase = () => {
-    if (!state.ringtoneAudio || state.ringtoneAudio.state !== "running") return;
-    const notes = [659.25, 783.99, 987.77, 783.99];
-    const startAt = state.ringtoneAudio.currentTime + .03;
-    notes.forEach((frequency, index) => {
-      const start = startAt + index * .19;
-      const oscillator = state.ringtoneAudio.createOscillator();
-      const gain = state.ringtoneAudio.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(frequency, start);
-      gain.gain.setValueAtTime(.001, start);
-      gain.gain.linearRampToValueAtTime(.11, start + .025);
-      gain.gain.setValueAtTime(.11, start + .11);
-      gain.gain.exponentialRampToValueAtTime(.001, start + .16);
-      oscillator.connect(gain).connect(state.ringtoneAudio.destination);
-      oscillator.start(start);
-      oscillator.stop(start + .17);
-    });
-  };
-  state.ringtoneAudio?.resume().then(playPhrase).catch((error) => {
+  state.ringtoneAudio?.resume().then(playRingtonePhrase).catch((error) => {
     console.warn("Ring tone audio could not start; device vibration remains available.", error);
   });
   navigator.vibrate?.([180, 80, 180]);
   state.ringtoneTimer = window.setInterval(() => {
-    playPhrase();
+    playRingtonePhrase();
     navigator.vibrate?.([180, 80, 180]);
   }, 1900);
+}
+
+const RINGTONES = {
+  classic: [659.25, 783.99, 987.77, 783.99],
+  chime: [523.25, 659.25, 783.99, 1046.5],
+  pulse: [440, 440, 659.25, 440],
+};
+
+function playRingtonePhrase() {
+  if (!state.ringtoneAudio || state.ringtoneAudio.state !== "running") return;
+  const notes = RINGTONES[state.ringtoneId] || RINGTONES.classic;
+  const startAt = state.ringtoneAudio.currentTime + .03;
+  notes.forEach((frequency, index) => {
+    const start = startAt + index * .19;
+    const oscillator = state.ringtoneAudio.createOscillator();
+    const gain = state.ringtoneAudio.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(.001, start);
+    gain.gain.linearRampToValueAtTime(.11, start + .025);
+    gain.gain.setValueAtTime(.11, start + .11);
+    gain.gain.exponentialRampToValueAtTime(.001, start + .16);
+    oscillator.connect(gain).connect(state.ringtoneAudio.destination);
+    oscillator.start(start);
+    oscillator.stop(start + .17);
+  });
+}
+
+function previewRingtone() {
+  primeRingtoneAudio();
+  if (!state.ringtoneAudio) {
+    notify("This browser can't play an in-app ringtone.");
+    return;
+  }
+  state.ringtoneAudio.resume().then(playRingtonePhrase).catch((error) => {
+    console.warn("Ring tone preview could not start.", error);
+    notify("The ringtone preview couldn't start on this device.");
+  });
 }
 
 function stopRingtone() {
@@ -681,6 +701,7 @@ function decodeApplicationServerKey(value) {
 async function refreshNotificationSettings() {
   const status = $("#notification-status");
   const button = $("#toggle-notifications");
+  $("#notification-test").hidden = true;
   if (!("Notification" in window) || !("PushManager" in window) || !state.serviceWorkerRegistration) {
     status.textContent = "This browser doesn't support Ring notifications. Install Ring and try a supported browser.";
     button.disabled = true;
@@ -704,6 +725,7 @@ async function refreshNotificationSettings() {
   }
   button.disabled = false;
   button.textContent = state.notificationsEnabled ? "Turn off" : "Enable";
+  $("#notification-test").hidden = !state.notificationsEnabled;
   status.textContent = state.notificationsEnabled
     ? "Notifications are on for incoming Rings on this device."
     : Notification.permission === "denied"
@@ -760,6 +782,29 @@ async function toggleNotifications() {
   }
 }
 
+async function sendTestNotification() {
+  const button = $("#test-notifications");
+  button.disabled = true;
+  button.textContent = "Sending…";
+  try {
+    const subscription = await state.serviceWorkerRegistration?.pushManager.getSubscription();
+    if (!subscription) throw new Error("This device no longer has an active notification subscription. Turn notifications off and on, then try again.");
+    const { data, error } = await state.client.functions.invoke("send-ring-notification", {
+      body: { test: true, endpoint: subscription.endpoint },
+    });
+    if (error) throw new Error(await getPushErrorMessage(error));
+    if (!data?.sent) {
+      throw new Error("No active notification subscription was found for this device. Turn notifications off and on, then try again.");
+    }
+    notify("Test notification sent to this device.");
+  } catch (error) {
+    notify(error.message || "Unable to send a test notification.");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Send test";
+  }
+}
+
 $("#incoming-dialog").addEventListener("click", (event) => {
   const response = event.target.closest("[data-response]")?.dataset.response;
   if (response) respondToIncoming(response);
@@ -779,6 +824,18 @@ $("#open-profile").addEventListener("click", () => {
   refreshNotificationSettings().catch((error) => notify(error.message));
 });
 $("#toggle-notifications").addEventListener("click", toggleNotifications);
+$("#test-notifications").addEventListener("click", sendTestNotification);
+$("#preview-ringtone").addEventListener("click", previewRingtone);
+$("#ringtone-choice").addEventListener("change", (event) => {
+  const ringtoneId = event.currentTarget.value;
+  if (!Object.hasOwn(RINGTONES, ringtoneId)) return;
+  state.ringtoneId = ringtoneId;
+  try {
+    localStorage.setItem("ring-ringtone", ringtoneId);
+  } catch (error) {
+    notify(`Unable to save this ringtone on your device: ${error.message}`);
+  }
+});
 document.querySelectorAll("[data-mobile-nav]").forEach((button) => button.addEventListener("click", () => {
   document.querySelectorAll("[data-mobile-nav]").forEach((item) => {
     const active = item === button && button.dataset.mobileNav === "rings";
@@ -861,8 +918,9 @@ function registerServiceWorker() {
     setInstallButtonsVisible(!isAppInstalled());
     return;
   }
-  navigator.serviceWorker.register("./sw.js")
+  navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" })
     .then(async (registration) => {
+      registration.update().catch((error) => console.warn("Unable to check for a Ring background update.", error));
       state.serviceWorkerRegistration = await navigator.serviceWorker.ready;
       setInstallButtonsVisible(!isAppInstalled());
       if ($("#profile-dialog").open) refreshNotificationSettings().catch((error) => notify(error.message));
@@ -872,6 +930,15 @@ function registerServiceWorker() {
       notify(`Unable to start Ring's background service: ${error.message}`);
       setInstallButtonsVisible(!isAppInstalled());
     });
+}
+try {
+  const savedRingtone = localStorage.getItem("ring-ringtone");
+  if (savedRingtone && Object.hasOwn(RINGTONES, savedRingtone)) {
+    state.ringtoneId = savedRingtone;
+    $("#ringtone-choice").value = savedRingtone;
+  }
+} catch (error) {
+  console.warn("Unable to load the saved Ring tone.", error);
 }
 if (document.readyState === "complete") registerServiceWorker();
 else window.addEventListener("load", registerServiceWorker, { once: true });

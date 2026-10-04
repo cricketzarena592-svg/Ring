@@ -169,6 +169,22 @@
           <div><strong>Ring notifications</strong><p id="notification-status">Get alerted when someone Rings you.</p></div>
           <button class="quiet-button" id="toggle-notifications" type="button">Enable</button>
         </div>
+        <div class="notification-test" id="notification-test" hidden>
+          <p>Check that notifications reach this device.</p>
+          <button class="quiet-button" id="test-notifications" type="button">Send test</button>
+        </div>
+        <div class="ringtone-setting">
+          <label for="ringtone-choice">Incoming ringtone</label>
+          <div class="ringtone-controls">
+            <select id="ringtone-choice">
+              <option value="classic">Classic</option>
+              <option value="chime">Chime</option>
+              <option value="pulse">Pulse</option>
+            </select>
+            <button class="quiet-button" id="preview-ringtone" type="button">Preview</button>
+          </div>
+          <p>Saved on this device. Your choice plays when Ring is open.</p>
+        </div>
         <div class="modal-actions"><button class="quiet-button" id="sign-out" type="button">Sign out</button><button class="primary-button" type="button" data-close="profile-dialog">Done</button></div>
       </section>
     </dialog>
