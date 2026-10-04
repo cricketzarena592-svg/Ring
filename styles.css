@@ -291,6 +291,8 @@ input::placeholder { color: #85848a; }
 .detail-actions { justify-content: center; align-items: center; margin-top: 17px; }
 .ring-now-button { color: white; background: #6c95f0; }
 .ring-now-button:hover { color: white; background: #80a5fa; }
+.ring-now-button { width: 88px; height: 88px; min-height: 88px; flex: 0 0 auto; padding: 0; border-radius: 50%; }
+.ring-now-button svg { width: 35px; height: 35px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .detail-invite { border-color: #545459; color: #e7e6eb; background: #414145; }
 .detail-invite:hover { background: #4c4c51; }
 .stop-ring-button { min-height: 39px; border-color: rgba(255,133,139,.42); color: #ff969b; background: rgba(201,80,90,.14); }

@@ -239,12 +239,25 @@ async function findActiveEvents() {
     .eq("status", "active")
     .order("created_at", { ascending: false });
   if (error) throw error;
+  const eventIds = (data || []).map((item) => item.id);
+  const answeredEventIds = new Set();
+  if (eventIds.length) {
+    const { data: answers, error: answersError } = await state.client
+      .from("ring_responses")
+      .select("event_id")
+      .eq("user_id", state.user.id)
+      .in("event_id", eventIds);
+    if (answersError) throw answersError;
+    for (const answer of answers || []) answeredEventIds.add(answer.event_id);
+  }
   const own = data?.find((item) => item.sender_id === state.user.id) || null;
-  const linkedEvent = data?.find((item) => item.id === state.pendingRingEventId) || null;
+  const activeLinkedEvent = data?.find((item) => item.id === state.pendingRingEventId) || null;
+  const linkedEvent = activeLinkedEvent && !answeredEventIds.has(activeLinkedEvent.id) ? activeLinkedEvent : null;
+  const unansweredEvents = (data || []).filter((item) => item.sender_id !== state.user.id && !answeredEventIds.has(item.id));
   const incoming = linkedEvent?.sender_id !== state.user.id && linkedEvent
     ? linkedEvent
-    : data?.find((item) => item.sender_id !== state.user.id) || null;
-  if (state.pendingRingEventId && !linkedEvent) notify("That Ring has ended or is no longer available.");
+    : unansweredEvents[0] || null;
+  if (state.pendingRingEventId && !linkedEvent && !activeLinkedEvent) notify("That Ring has ended or is no longer available.");
   if (state.pendingRingEventId) {
     state.pendingRingEventId = null;
     history.replaceState({}, "", new URL("./", window.location.href));
@@ -444,7 +457,7 @@ function renderRings() {
       <div class="ring-hero-avatar" aria-hidden="true">${escapeHtml(ring.name.charAt(0).toUpperCase())}</div>
       <span class="eyebrow">YOUR RING</span><h2>${escapeHtml(ring.name)}</h2><p>${escapeHtml(ring.default_topic)}</p>
       <div class="detail-actions">
-        ${event ? `<button class="quiet-button stop-ring-button" type="button" data-end-event="${escapeHtml(event.id)}">■ Stop Ring</button>` : `<button class="primary-button ring-now-button" type="button" data-ring-now="${escapeHtml(ring.id)}">◉ Ring now</button>`}
+        ${event ? `<button class="quiet-button stop-ring-button" type="button" data-end-event="${escapeHtml(event.id)}">■ Stop Ring</button>` : `<button class="primary-button ring-now-button" type="button" data-ring-now="${escapeHtml(ring.id)}" aria-label="Ring ${escapeHtml(ring.name)} now" title="Ring now"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button>`}
         <button class="quiet-button detail-invite" type="button" data-invite-ring="${escapeHtml(ring.id)}">＋ Invite</button>
         ${canDelete ? `<details class="ring-options"><summary class="ring-options-button" aria-label="Ring options" title="Ring options">•••</summary><div class="ring-options-menu"><button class="delete-ring-option" type="button" data-delete-ring="${escapeHtml(ring.id)}">Delete Ring</button></div></details>` : ""}
       </div>
@@ -657,6 +670,7 @@ async function respondToIncoming(response) {
   state.incomingResponses = [];
   stopRingtone();
   notify(`You answered ${response === "yes" ? "Yes" : "No"}.`);
+  renderRings();
 }
 
 function decodeApplicationServerKey(value) {
