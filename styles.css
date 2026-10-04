@@ -363,6 +363,139 @@ button:disabled { cursor: wait; opacity: .65; }
   100% { box-shadow: 0 0 0 8px rgba(105,145,233,.1), 0 0 0 16px rgba(105,145,233,0); }
 }
 
+@media (max-width: 760px) {
+  :root {
+    --ink: #1f2918;
+    --muted: #59654b;
+    --line: #7a8760;
+    --canvas: #aeb98a;
+    --paper: #d8dfb7;
+    --forest: #29351f;
+    --forest-light: #3b4a2c;
+    --lime: #c8d995;
+    font-family: "Courier New", monospace;
+  }
+  #auth-view { background: #aeb98a; }
+  #auth-view .brand, #app-view .brand { color: #29351f; font-family: "Courier New", monospace; }
+  #auth-view .brand-mark { border-radius: 2px; color: #29351f; background: #d0dfa0; }
+  #auth-view .auth-topbar, #app-view .workspace-topbar {
+    border-bottom: 2px solid #78865c;
+    background: #c7d29d;
+  }
+  #auth-view .auth-copy h1, #app-view .page-heading h1, #app-view .topbar-title,
+  #app-view .section-heading h2, #app-view .detail-banner h2,
+  #auth-view .auth-panel-heading h2, .modal-card h2, .incoming-screen h2 {
+    color: #29351f;
+    font-family: "Courier New", monospace;
+    font-weight: 800;
+    letter-spacing: -.06em;
+  }
+  #auth-view .auth-copy h1 span, #auth-view .auth-copy > p,
+  #app-view .page-heading p, #app-view .workspace-topbar .eyebrow { color: #536145; }
+  #auth-view .auth-panel, #app-view .ring-card, #app-view .ring-detail,
+  #app-view .empty-rings, #app-view .no-ring-results {
+    border: 2px solid #64734c;
+    border-radius: 2px;
+    color: #29351f;
+    background: #d8dfb7;
+    box-shadow: inset 2px 2px rgba(255,255,220,.38), 3px 3px 0 rgba(42,54,29,.2);
+  }
+  #auth-view .auth-panel { padding: 20px 17px; }
+  #auth-view .auth-tabs { border-color: #89966e; }
+  #auth-view .auth-tab { color: #59654b; }
+  #auth-view .auth-tab.is-active { border-bottom-color: #344327; color: #29351f; }
+  #auth-view label { color: #36442b; }
+  #auth-view input {
+    border: 2px solid #849168;
+    border-radius: 0;
+    color: #202a19;
+    background: #edf0d3;
+    font-family: "Courier New", monospace;
+  }
+  #auth-view input::placeholder { color: #7a8565; }
+  #app-view { background: #aeb98a; }
+  #app-view .sidebar { color: #29351f; background: #c7d29d; border-right: 2px solid #78865c; }
+  #app-view .sidebar-link, #app-view .profile-button { border: 2px solid #78865c; border-radius: 2px; color: #29351f; background: #d8dfb7; }
+  #app-view .sidebar-label, #app-view .profile-button-copy small, #app-view .profile-chevron { color: #59654b; }
+  #app-view .avatar, #app-view .avatar-small {
+    border: 2px solid #4f603a;
+    border-radius: 2px;
+    color: #26331d;
+    background: #c8d995;
+  }
+  #app-view .install-button, #app-view .count-pill { border-radius: 2px; color: #29351f; background: #d8dfb7; }
+  #app-view .ring-search { border: 2px solid #69784e; border-radius: 2px; color: #36442b; background: #d8dfb7; }
+  #app-view .ring-search input { border: 0; background: transparent; }
+  #app-view .ring-card { min-height: 68px; border-color: #78865c; background: #c8d39f; }
+  #app-view .ring-card.is-selected { border-color: #35452a; background: #dce5b8; box-shadow: inset 4px 0 #39492b; }
+  #app-view .ring-symbol, #app-view .member-mini { border-radius: 2px; color: #e6eccb; background: #485a37; box-shadow: none; }
+  #app-view .ring-card-copy small, #app-view .ring-card-arrow { color: #536145; }
+  #app-view .detail-banner { border-bottom: 2px solid #64734c; border-radius: 0; color: #29351f; background: #c8d39f; }
+  #app-view .detail-banner::after { border-color: rgba(44,58,31,.1); box-shadow: 0 0 0 18px rgba(44,58,31,.035), 0 0 0 37px rgba(44,58,31,.025); }
+  #app-view .ring-hero-avatar { border: 3px solid #64734c; border-radius: 2px; color: #e6eccb; background: #485a37; box-shadow: 3px 3px 0 rgba(42,54,29,.2); }
+  #app-view .detail-banner .eyebrow, #app-view .detail-banner p,
+  #app-view .detail-section-head > span, #app-view .detail-section-head h3,
+  #app-view .response-summary h3 { color: #4f5d40; }
+  #app-view .ring-now-button, #app-view .ring-now-button:hover {
+    border: 3px solid #35452a;
+    color: #e8efc8;
+    background: #485a37;
+    box-shadow: inset 2px 2px rgba(255,255,220,.2), 3px 3px 0 rgba(42,54,29,.25);
+  }
+  #app-view .detail-invite, #app-view .quiet-button {
+    border: 2px solid #68774f;
+    border-radius: 2px;
+    color: #29351f;
+    background: #d8dfb7;
+    box-shadow: inset 1px 1px rgba(255,255,220,.45), 2px 2px 0 rgba(42,54,29,.17);
+  }
+  #app-view .detail-invite:hover, #app-view .quiet-button:hover { background: #e1e8c2; }
+  #app-view .member-chip, .profile-field, .notification-setting { border-color: #89966e; border-radius: 0; color: #29351f; background: #e3e8c8; }
+  #app-view .response-summary { border-top-color: #9ba77d; }
+  #app-view .response-count { border-radius: 2px; color: #29351f; background: #e1e8c2; }
+  #app-view .response-count.yes { background: #b8ce83; }
+  #app-view .response-count.no { color: #593b2b; background: #d2bd91; }
+  #app-view .response-count.waiting { color: #49563a; background: #e1e5c8; }
+  #app-view .response-row, #app-view .response-tag { color: #344229; }
+  #app-view .workspace-footer { border-color: #87936b; color: #536145; }
+  #app-view .workspace-footer span:last-child { color: #46543a; }
+  #app-view .mobile-nav {
+    border: 3px solid #252b20;
+    border-bottom: 0;
+    background: #566044;
+    box-shadow: 0 -3px 0 #85916b, 0 -8px 18px rgba(34,42,27,.2);
+    backdrop-filter: none;
+  }
+  #app-view .mobile-nav-item {
+    border: 2px solid #87916c;
+    border-radius: 2px;
+    color: #e1e8c2;
+    background: #414b32;
+    font-family: "Courier New", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+  #app-view .mobile-nav-item.is-current { border-color: #d7e6a6; color: #29351f; background: #c8d995; box-shadow: inset 2px 2px rgba(255,255,220,.45), 2px 2px 0 #303927; }
+  #app-view .mobile-nav-icon { font-size: 17px; }
+  #app-view .mobile-nav-create .mobile-nav-icon { width: 27px; height: 23px; border: 2px solid #d6e2ab; border-radius: 2px; color: #edf2d1; background: #485a37; }
+  #app-view .mobile-nav-create { color: #e1e8c2; }
+  .modal-dialog, .incoming-dialog { border: 3px solid #344229; border-radius: 2px; background: #d8dfb7; box-shadow: 4px 4px 0 rgba(33,42,24,.35); }
+  .modal-dialog::backdrop, .incoming-dialog::backdrop { background: rgba(36,47,27,.72); backdrop-filter: none; }
+  .modal-card { border: 2px solid #64734c; border-radius: 0; background: #d8dfb7; }
+  .modal-card h2, .profile-field strong, .notification-setting strong { color: #29351f; }
+  .modal-intro, .notification-setting p, .profile-field span { color: #59654b; }
+  .modal-close { color: #344229; }
+  .incoming-screen { color: #29351f; }
+  .incoming-dismiss { border: 2px solid #69784e; border-radius: 2px; color: #29351f; background: #d8dfb7; }
+  .incoming-pulse { border: 3px solid #35452a; border-radius: 2px; color: #e8efc8; background: #485a37; box-shadow: 0 0 0 7px #c8d39f, 0 0 0 13px #d8dfb7; }
+  .incoming-screen .eyebrow, .incoming-group, .incoming-sender, .incoming-footnote { color: #536145; }
+  .response-button { border: 2px solid #35452a; border-radius: 2px; color: #e8efc8; background: #485a37; box-shadow: inset 2px 2px rgba(255,255,220,.2), 2px 2px 0 rgba(42,54,29,.25); font-family: "Courier New", monospace; text-transform: uppercase; }
+  .response-yes, .response-yes:hover { background: #485a37; }
+  .response-no, .response-no:hover { color: #412c20; background: #d2bd91; }
+  .toast { border: 2px solid #35452a; border-radius: 0; color: #e8efc8; background: #485a37; font-family: "Courier New", monospace; box-shadow: 3px 3px 0 rgba(42,54,29,.25); }
+  button:focus-visible, input:focus-visible { outline-color: #35452a; }
+}
+
 .mobile-nav { display: none; }
 @media (max-width: 760px) {
   .ring-layout { grid-template-columns: 1fr; gap: 22px; }
